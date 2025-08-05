@@ -1,0 +1,60 @@
+$scriptS = <<-SCRIPT
+set -e
+sudo apt-get update --fix-missing
+sudo apt-get install -y curl
+
+# Definition env pour k3s
+export K3S_KUBECONFIG_MODE="644"
+export INSTALL_K3S_EXEC="server --node-ip=192.168.56.110"
+
+# Download et install k3s
+curl -sfL https://get.k3s.io | sh -
+
+# Attendre que k3s soit pret
+echo "Waiting for k3s to be ready..."
+until kubectl get node ktroudeS --no-headers | grep -q Ready; do
+  sleep 5
+done
+
+# Configuration kubeconfig pour l'hote
+KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
+sudo cp $KUBECONFIG /vagrant/k3s.yaml
+sudo sed -i 's/127.0.0.1/192.168.56.110/g' /vagrant/k3s.yaml
+sudo chmod 644 /vagrant/k3s.yaml
+
+# Alias kubectl
+echo "alias k='kubectl'" >> /home/vagrant/.bashrc
+
+# Deployer les applications
+echo "Deploying applications..."
+kubectl apply -f /vagrant/k8s-apps/app1.yaml
+kubectl apply -f /vagrant/k8s-apps/app2.yaml  
+kubectl apply -f /vagrant/k8s-apps/app3.yaml
+kubectl apply -f /vagrant/k8s-apps/ingress.yaml
+
+# Attendre que tous les pods run
+echo "Waiting for pods to be ready..."
+kubectl wait --for=condition=Ready pod -l app=app1 --timeout=60s
+kubectl wait --for=condition=Ready pod -l app=app2 --timeout=60s  
+kubectl wait --for=condition=Ready pod -l app=app3 --timeout=60s
+
+echo "Setup complete. Applications deployed successfully"
+echo "Test with: curl -H 'Host: app1.com' http://192.168.56.110"
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/jammy64"
+  
+  config.vm.define "ktroudeS" do |server|
+    server.vm.hostname = "ktroudeS"
+    server.vm.network "private_network", type: "static", ip: "192.168.56.110"
+    
+    server.vm.provider "virtualbox" do |vb|
+      vb.name = "ktroudeS"
+      vb.cpus = 2
+      vb.memory = "1024"
+    end
+    
+    server.vm.provision "shell", inline: $scriptS
+  end
+end
