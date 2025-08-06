@@ -29,16 +29,12 @@ echo "=================================================================="
 echo "CLEANING UP ALL K3D RESOURCES"
 echo "=================================================================="
 
-# =====================================
-# 1 STOP ANY RUNNING PORT-FORWARDS
-# =====================================
+### 1 STOP ANY RUNNING PORT-FORWARDS
 log_info "Stopping any running kubectl port-forwards..."
 pkill -f "kubectl port-forward" 2>/dev/null || true
 log_success "Port-forwards stopped"
 
-# =====================================
-# 2 DELETE ALL K3D CLUSTERS
-# =====================================
+### 2 DELETE ALL K3D CLUSTERS
 log_info "Listing existing K3d clusters..."
 k3d cluster list
 
@@ -53,9 +49,7 @@ else
     log_info "No K3d clusters found to delete"
 fi
 
-# =====================================
-# 3 CLEAN KUBECTL CONTEXTS
-# =====================================
+### 3 CLEAN KUBECTL CONTEXTS
 log_info "Cleaning kubectl contexts..."
 
 # Delete k3d-related contexts
@@ -78,9 +72,7 @@ done
 
 log_success "Kubectl contexts cleaned"
 
-# =====================================
-# 4 CLEAN DOCKER CONTAINERS
-# =====================================
+### 4 CLEAN DOCKER CONTAINERS
 log_info "Cleaning Docker containers related to k3d..."
 
 # Stop and remove k3d containers
@@ -110,16 +102,12 @@ done
 
 log_success "Docker resources cleaned"
 
-# =====================================
-# 5 CLEAN DOCKER SYSTEM
-# =====================================
+### 5 CLEAN DOCKER SYSTEM
 log_info "Cleaning unused Docker resources..."
 docker system prune -f --volumes 2>/dev/null || true
 log_success "Docker system cleaned"
 
-# =====================================
-# 6 RESET KUBECTL CONFIG 
-# =====================================
+### 6 RESET KUBECTL CONFIG 
 log_info "Checking kubectl configuration..."
 
 # If no valid context remains, create a minimal config
@@ -128,29 +116,10 @@ if ! kubectl config current-context &>/dev/null; then
     log_info "kubectl will be reconfigured when you create a new cluster"
 fi
 
-# =====================================
-# 7 REMOVE PROJECT
-# =====================================
+### 7 REMOVE PROJECT
 log_info "Remove iot-argocd project"
 rm -rf ./iot-argocd
 log_success "iot-argocd project removed"
-
-# =====================================
-# 8 VERIFICATION
-# =====================================
-echo ""
-log_info "Verification after cleanup..."
-
-echo "K3d clusters:"
-k3d cluster list || echo "No clusters found (expected)"
-
-echo ""
-echo "Docker containers (k3d related):"
-docker ps -a --filter "label=app=k3d" || echo "No k3d containers found (expected)"
-
-echo ""
-echo "Kubectl contexts:"
-kubectl config get-contexts 2>/dev/null || echo "No kubectl contexts configured"
 
 echo ""
 echo "=================================================================="

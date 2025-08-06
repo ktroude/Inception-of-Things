@@ -17,7 +17,7 @@ echo ""
 echo "Initial ArgoCD password:"
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 echo ""
-echo ""
+echo ""log_warning
 
 # 5 Configuring access to the ArgoCD interface
 echo "To access the ArgoCD interface:"

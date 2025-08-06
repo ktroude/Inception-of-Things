@@ -47,9 +47,7 @@ fi
 
 log_info "Detected system: $(lsb_release -d 2>/dev/null | cut -f2 || echo "Linux")"
 
-# =====================================
-# 1. SYSTEM UPDATE
-# =====================================
+### 1 SYSTEM UPDATE
 log_info "Updating system packages..."
 sudo apt-get update -qq
 
@@ -59,15 +57,13 @@ sudo apt-get install -y \
     wget \
     git \
     unzip \
-    apt-transport-https \
+    apt-transport-https \ 
     ca-certificates \
     gnupg \
     lsb-release \
     jq
 
-# =====================================
-# 2. DOCKER INSTALLATION
-# =====================================
+### 2 DOCKER INSTALLATION
 log_info "Checking Docker..."
 
 if check_command docker; then
@@ -103,9 +99,7 @@ else
     log_warning "IMPORTANT: Restart your session or run 'newgrp docker' to use Docker without sudo"
 fi
 
-# =====================================
-# 3. KUBECTL INSTALLATION
-# =====================================
+### 3 KUBECTL INSTALLATION
 log_info "Checking kubectl..."
 
 if check_command kubectl; then
@@ -124,9 +118,7 @@ else
     log_success "kubectl installed: version $KUBECTL_VERSION"
 fi
 
-# =====================================
-# 4. K3D INSTALLATION
-# =====================================
+### 4 K3D INSTALLATION
 log_info "Checking k3d..."
 
 if check_command k3d; then
@@ -140,29 +132,7 @@ else
     log_success "k3d installed successfully"
 fi
 
-# =====================================
-# 5. ADDITIONAL TOOLS INSTALLATION
-# =====================================
-log_info "Installing additional tools..."
-
-# Helm (useful for ArgoCD)
-if ! check_command helm; then
-    log_info "Installing Helm..."
-    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-    log_success "Helm installed"
-fi
-
-# yq (for YAML file manipulation)
-if ! check_command yq; then
-    log_info "Installing yq..."
-    sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-    sudo chmod +x /usr/local/bin/yq
-    log_success "yq installed"
-fi
-
-# =====================================
-# 6. FINAL CHECKS
-# =====================================
+### 5 FINAL CHECKS
 echo ""
 log_info "Running final checks..."
 
@@ -176,7 +146,7 @@ fi
 # Test kubectl
 if kubectl version --client &> /dev/null; then
     log_success "kubectl is working"
-else
+elsecurl -LO "https://dl.
     log_error "kubectl is not working"
 fi
 
@@ -187,34 +157,7 @@ else
     log_error "k3d is not working"
 fi
 
-# =====================================
-# 7. INSTALLATION SUMMARY
-# =====================================
 echo ""
 echo "=================================================================="
 echo "INSTALLATION COMPLETED"
 echo "=================================================================="
-
-echo -e "${GREEN}Installed tools:${NC}"
-echo "  • Docker: $(docker --version 2>/dev/null || echo "Not accessible without session restart")"
-echo "  • kubectl: $(kubectl version --client --short 2>/dev/null | cut -d' ' -f3 || echo "Installed")"
-echo "  • k3d: $(k3d version 2>/dev/null | head -1 || echo "Installed")"
-echo "  • Helm: $(helm version --short 2>/dev/null || echo "Installed")"
-echo "  • yq: $(yq --version 2>/dev/null || echo "Installed")"
-
-echo ""
-echo -e "${YELLOW}NEXT STEPS:${NC}"
-echo "1. Restart your session or run: newgrp docker"
-echo "2. Test Docker: docker ps"
-echo "3. Create your cluster: k3d cluster create iot-cluster"
-echo "4. Verify kubectl: kubectl get nodes"
-
-echo ""
-echo -e "${BLUE}USEFUL COMMANDS:${NC}"
-echo "• Create K3d cluster: k3d cluster create iot-cluster --port '8080:80@loadbalancer'"
-echo "• List clusters: k3d cluster list"
-echo "• Delete cluster: k3d cluster delete iot-cluster"
-echo "• Check nodes: kubectl get nodes"
-
-echo ""
-log_success "Installation successful!"

@@ -16,9 +16,7 @@ k3d cluster create iot-cluster \
 # 3 Check that the cluster is running
 kubectl get nodes
 kubectl cluster-info
-# =====================================
-# PHASE 2 - INSTALLATION ARGOCD
-# =====================================
+
 # 4 Create the required namespaces
 kubectl create namespace argocd
 kubectl create namespace dev
@@ -26,12 +24,3 @@ kubectl create namespace dev
 # 5 Check namespaces
 kubectl get namespaces
 
-# Expected result:
-
-# NAME              STATUS   AGE
-# argocd            Active   0s
-# default           Active   24s
-# dev               Active   0s
-# kube-node-lease   Active   24s
-# kube-public       Active   24s
-# kube-system       Active   24s
