@@ -1,22 +1,72 @@
 $scriptS = <<-SCRIPT
-set -e
 sudo apt-get update --fix-missing
 sudo apt-get install -y curl
 
-# Definition env pour k3s
+# Configuration pour k3s
 export K3S_KUBECONFIG_MODE="644"
-export INSTALL_K3S_EXEC="server --node-ip=192.168.56.110"
+export INSTALL_K3S_EXEC="server --node-ip=192.168.56.110 --bind-address=192.168.56.110 --flannel-iface=enp0s8"
 
-# Download et install k3s
+# Installation de k3s
 curl -sfL https://get.k3s.io | sh -
 
-# Attendre que k3s soit pret
-echo "Waiting for k3s to be ready..."
-until kubectl get node ktroudeS --no-headers | grep -q Ready; do
-  sleep 5
+# Attendre que le node apparaisse
+echo "Waiting for k3s node to appear..."
+until kubectl get nodes --no-headers 2>/dev/null | grep -q .; do
+  sleep 2
 done
 
-# Configuration kubeconfig pour l'hote
+# Attendre que le node soit ready
+echo "Waiting for k3s node to be ready..."
+until kubectl get nodes --no-headers | grep -q Ready; do
+  sleep 2
+done
+
+# Attendre que Traefik soit déployé
+echo "Waiting for Traefik deployment..."
+until kubectl get pods -n kube-system -l app.kubernetes.io/name=traefik --no-headers 2>/dev/null | grep -q .; do
+  sleep 2
+done
+
+# Attendre que Traefik soit prêt
+echo "Waiting for Traefik to be ready..."
+kubectl wait -n kube-system \
+  --for=condition=Ready pod \
+  -l app.kubernetes.io/name=traefik \
+  --timeout=300s
+
+echo "Configuring Traefik to use hostPort..."
+
+# Supprimer l'ancien pod pour éviter les blocages
+kubectl delete pod -n kube-system -l app.kubernetes.io/name=traefik --force --grace-period=0 2>/dev/null || true
+
+# Patcher le deployment Traefik pour utiliser hostPort sur les ports 80 et 443
+kubectl patch deployment traefik -n kube-system --type='json' -p='[
+  {
+    "op": "add",
+    "path": "/spec/template/spec/containers/0/ports/0/hostPort",
+    "value": 80
+  },
+  {
+    "op": "add",
+    "path": "/spec/template/spec/containers/0/ports/1/hostPort",
+    "value": 443
+  }
+]'
+
+# Attendre que le nouveau pod soit créé et prêt
+echo "Waiting for Traefik to be ready with hostPort..."
+sleep 10
+until kubectl get pods -n kube-system -l app.kubernetes.io/name=traefik --no-headers 2>/dev/null | grep -q Running; do
+  sleep 2
+done
+kubectl wait -n kube-system \
+  --for=condition=Ready pod \
+  -l app.kubernetes.io/name=traefik \
+  --timeout=300s
+
+echo "Traefik is ready!"
+
+# Copier kubeconfig
 KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
 sudo cp $KUBECONFIG /vagrant/k3s.yaml
 sudo sed -i 's/127.0.0.1/192.168.56.110/g' /vagrant/k3s.yaml
@@ -25,21 +75,24 @@ sudo chmod 644 /vagrant/k3s.yaml
 # Alias kubectl
 echo "alias k='kubectl'" >> /home/vagrant/.bashrc
 
-# Deployer les applications
+# Déploiement des applications
 echo "Deploying applications..."
-kubectl apply -f /vagrant/k8s-apps/app1.yaml
-kubectl apply -f /vagrant/k8s-apps/app2.yaml  
-kubectl apply -f /vagrant/k8s-apps/app3.yaml
-kubectl apply -f /vagrant/k8s-apps/ingress.yaml
+kubectl apply -f /vagrant/k8s-apps/
 
-# Attendre que tous les pods run
+# Attendre que les pods soient prêts
 echo "Waiting for pods to be ready..."
-kubectl wait --for=condition=Ready pod -l app=app1 --timeout=60s
-kubectl wait --for=condition=Ready pod -l app=app2 --timeout=60s  
-kubectl wait --for=condition=Ready pod -l app=app3 --timeout=60s
+kubectl wait --for=condition=Ready pod -l app=app1 --timeout=120s
+kubectl wait --for=condition=Ready pod -l app=app2 --timeout=120s
+kubectl wait --for=condition=Ready pod -l app=app3 --timeout=120s
 
-echo "Setup complete. Applications deployed successfully"
-echo "Test with: curl -H 'Host: app1.com' http://192.168.56.110"
+echo "================================"
+echo "Setup complete!"
+echo "================================"
+echo "Test commands:"
+echo "  curl -H 'Host: app1.com' http://192.168.56.110"
+echo "  curl -H 'Host: app2.com' http://192.168.56.110"
+echo "  curl -H 'Host: app3.com' http://192.168.56.110"
+echo "  curl http://192.168.56.110  # Should show app3 by default"
 SCRIPT
 
 Vagrant.configure("2") do |config|
@@ -52,7 +105,7 @@ Vagrant.configure("2") do |config|
     server.vm.provider "virtualbox" do |vb|
       vb.name = "ktroudeS"
       vb.cpus = 2
-      vb.memory = "1024"
+      vb.memory = 2048
     end
     
     server.vm.provision "shell", inline: $scriptS
