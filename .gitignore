@@ -1,3 +1,4 @@
 .vagrant
 token
-iot-argocd 
+iot-argocd
+k3s.yaml

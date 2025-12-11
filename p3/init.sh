@@ -119,7 +119,7 @@ ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o js
 log_info "Phase 5: Deploying application via ArgoCD..."
 
 # Apply ArgoCD Application from local config
-kubectl apply -f confs/application.yaml
+kubectl apply -f config/application.yaml
 
 log_info "Waiting for application to sync..."
 sleep 15
@@ -166,12 +166,12 @@ echo "  Login:   admin"
 echo "  Pass:    $ARGOCD_PASSWORD"
 echo ""
 echo -e "${GREEN}Application Access:${NC}"
-echo "  Command: kubectl port-forward -n dev svc/wil-playground-service 8888:8888"
-echo "  Test:    curl http://localhost:8888"
+echo "  Command: kubectl port-forward -n dev svc/wil-playground-service 8889:8888"
+echo "  Test:    curl http://localhost:8889"
 echo "  Expected: {\"status\":\"ok\", \"message\": \"v1\"}"
 echo ""
 echo -e "${YELLOW}To update application version:${NC}"
-echo "  1. Edit: app/deployment.yaml in GitHub repo"
+echo "  1. Edit: app/deployment.yaml in GitHub repo (git clone git@github.com:ktroude/iot-argocd.git)"
 echo "  2. Change: wil42/playground:v1 → wil42/playground:v2"
 echo "  3. Git: commit and push"
 echo "  4. ArgoCD will auto-sync within seconds"
